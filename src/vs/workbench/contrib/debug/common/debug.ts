@@ -530,6 +530,7 @@ export interface IBreakpointData {
 	readonly condition?: string;
 	readonly logMessage?: string;
 	readonly hitCondition?: string;
+	readonly args?: any;
 }
 
 export interface IBreakpointUpdateData {
@@ -538,6 +539,7 @@ export interface IBreakpointUpdateData {
 	readonly logMessage?: string;
 	readonly lineNumber?: number;
 	readonly column?: number;
+	readonly args?: any;
 }
 
 export interface IBaseBreakpoint extends IEnablement {
@@ -547,6 +549,7 @@ export interface IBaseBreakpoint extends IEnablement {
 	readonly verified: boolean;
 	readonly supported: boolean;
 	readonly message?: string;
+	readonly args?: any;
 	readonly sessionsThatVerified: string[];
 	getIdFromAdapter(sessionId: string): number | undefined;
 }
@@ -1186,6 +1189,13 @@ export const enum BreakpointWidgetContext {
 	CONDITION = 0,
 	HIT_COUNT = 1,
 	LOG_MESSAGE = 2
+}
+
+
+export const enum BreakpointTypeContext {
+	AUTOMATIC = 'auto',
+	HARDWARE_BREAKPOINT = 'hardware',
+	SOFTWARE_BREAKPOINT = 'software'
 }
 
 export interface IDebugEditorContribution extends editorCommon.IEditorContribution {

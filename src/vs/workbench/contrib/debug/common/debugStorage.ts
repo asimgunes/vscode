@@ -66,7 +66,7 @@ export class DebugStorage extends Disposable {
 		let result: Breakpoint[] | undefined;
 		try {
 			result = JSON.parse(this.storageService.get(DEBUG_BREAKPOINTS_KEY, StorageScope.WORKSPACE, '[]')).map((breakpoint: any) => {
-				return new Breakpoint(URI.parse(breakpoint.uri.external || breakpoint.source.uri.external), breakpoint.lineNumber, breakpoint.column, breakpoint.enabled, breakpoint.condition, breakpoint.hitCondition, breakpoint.logMessage, breakpoint.adapterData, this.textFileService, this.uriIdentityService, this.logService, breakpoint.id);
+				return new Breakpoint(URI.parse(breakpoint.uri.external || breakpoint.source.uri.external), breakpoint.lineNumber, breakpoint.column, breakpoint.enabled, breakpoint.condition, breakpoint.hitCondition, breakpoint.logMessage, breakpoint.args, breakpoint.adapterData, this.textFileService, this.uriIdentityService, this.logService, breakpoint.id);
 			});
 		} catch (e) { }
 
@@ -77,7 +77,7 @@ export class DebugStorage extends Disposable {
 		let result: FunctionBreakpoint[] | undefined;
 		try {
 			result = JSON.parse(this.storageService.get(DEBUG_FUNCTION_BREAKPOINTS_KEY, StorageScope.WORKSPACE, '[]')).map((fb: any) => {
-				return new FunctionBreakpoint(fb.name, fb.enabled, fb.hitCondition, fb.condition, fb.logMessage, fb.id);
+				return new FunctionBreakpoint(fb.name, fb.enabled, fb.hitCondition, fb.condition, fb.logMessage, fb.args, fb.id);
 			});
 		} catch (e) { }
 
@@ -99,7 +99,7 @@ export class DebugStorage extends Disposable {
 		let result: DataBreakpoint[] | undefined;
 		try {
 			result = JSON.parse(this.storageService.get(DEBUG_DATA_BREAKPOINTS_KEY, StorageScope.WORKSPACE, '[]')).map((dbp: any) => {
-				return new DataBreakpoint(dbp.description, dbp.dataId, true, dbp.enabled, dbp.hitCondition, dbp.condition, dbp.logMessage, dbp.accessTypes, dbp.accessType, dbp.id);
+				return new DataBreakpoint(dbp.description, dbp.dataId, true, dbp.enabled, dbp.hitCondition, dbp.condition, dbp.logMessage, dbp.accessTypes, dbp.accessType, dbp.args, dbp.id);
 			});
 		} catch (e) { }
 

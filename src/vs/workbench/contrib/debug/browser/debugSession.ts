@@ -446,7 +446,7 @@ export class DebugSession implements IDebugSession, IDisposable {
 		const response = await this.raw.setBreakpoints({
 			source: rawSource,
 			lines: breakpointsToSend.map(bp => bp.sessionAgnosticData.lineNumber),
-			breakpoints: breakpointsToSend.map(bp => ({ line: bp.sessionAgnosticData.lineNumber, column: bp.sessionAgnosticData.column, condition: bp.condition, hitCondition: bp.hitCondition, logMessage: bp.logMessage })),
+			breakpoints: breakpointsToSend.map(bp => ({ line: bp.sessionAgnosticData.lineNumber, column: bp.sessionAgnosticData.column, condition: bp.condition, hitCondition: bp.hitCondition, logMessage: bp.logMessage, args: bp.args })),
 			sourceModified
 		});
 		if (response && response.body) {

@@ -776,6 +776,7 @@ export abstract class BaseBreakpoint extends Enablement implements IBaseBreakpoi
 		public hitCondition: string | undefined,
 		public condition: string | undefined,
 		public logMessage: string | undefined,
+		public args: any | undefined,
 		id: string
 	) {
 		super(enabled, id);
@@ -860,6 +861,7 @@ export abstract class BaseBreakpoint extends Enablement implements IBaseBreakpoi
 		result.condition = this.condition;
 		result.hitCondition = this.hitCondition;
 		result.logMessage = this.logMessage;
+		result.args = this.args;
 
 		return result;
 	}
@@ -875,13 +877,14 @@ export class Breakpoint extends BaseBreakpoint implements IBreakpoint {
 		condition: string | undefined,
 		hitCondition: string | undefined,
 		logMessage: string | undefined,
+		args: any | undefined,
 		private _adapterData: any,
 		private readonly textFileService: ITextFileService,
 		private readonly uriIdentityService: IUriIdentityService,
 		private readonly logService: ILogService,
 		id = generateUuid()
 	) {
-		super(enabled, hitCondition, condition, logMessage, id);
+		super(enabled, hitCondition, condition, logMessage, args, id);
 	}
 
 	get originalUri() {
@@ -989,6 +992,7 @@ export class Breakpoint extends BaseBreakpoint implements IBreakpoint {
 		if (!isUndefinedOrNull(data.logMessage)) {
 			this.logMessage = data.logMessage;
 		}
+		this.args = data.args;
 	}
 }
 
@@ -1000,9 +1004,10 @@ export class FunctionBreakpoint extends BaseBreakpoint implements IFunctionBreak
 		hitCondition: string | undefined,
 		condition: string | undefined,
 		logMessage: string | undefined,
+		args: any | undefined,
 		id = generateUuid()
 	) {
-		super(enabled, hitCondition, condition, logMessage, id);
+		super(enabled, hitCondition, condition, logMessage, args, id);
 	}
 
 	override toJSON(): any {
@@ -1035,11 +1040,12 @@ export class DataBreakpoint extends BaseBreakpoint implements IDataBreakpoint {
 		hitCondition: string | undefined,
 		condition: string | undefined,
 		logMessage: string | undefined,
+		args: any | undefined,
 		public readonly accessTypes: DebugProtocol.DataBreakpointAccessType[] | undefined,
 		public readonly accessType: DebugProtocol.DataBreakpointAccessType,
 		id = generateUuid()
 	) {
-		super(enabled, hitCondition, condition, logMessage, id);
+		super(enabled, hitCondition, condition, logMessage, args, id);
 	}
 
 	override toJSON(): any {
@@ -1078,7 +1084,7 @@ export class ExceptionBreakpoint extends BaseBreakpoint implements IExceptionBre
 		public readonly conditionDescription: string | undefined,
 		private fallback: boolean = false
 	) {
-		super(enabled, undefined, condition, undefined, generateUuid());
+		super(enabled, undefined, condition, undefined, undefined, generateUuid());
 	}
 
 	override toJSON(): any {
@@ -1144,9 +1150,10 @@ export class InstructionBreakpoint extends BaseBreakpoint implements IInstructio
 		condition: string | undefined,
 		logMessage: string | undefined,
 		public readonly address: bigint,
+		args: any | undefined,
 		id = generateUuid()
 	) {
-		super(enabled, hitCondition, condition, logMessage, id);
+		super(enabled, hitCondition, condition, logMessage, args, id);
 	}
 
 	override toJSON(): DebugProtocol.InstructionBreakpoint {
@@ -1462,7 +1469,7 @@ export class DebugModel extends Disposable implements IDebugModel {
 	}
 
 	addBreakpoints(uri: uri, rawData: IBreakpointData[], fireEvent = true): IBreakpoint[] {
-		const newBreakpoints = rawData.map(rawBp => new Breakpoint(uri, rawBp.lineNumber, rawBp.column, rawBp.enabled === false ? false : true, rawBp.condition, rawBp.hitCondition, rawBp.logMessage, undefined, this.textFileService, this.uriIdentityService, this.logService, rawBp.id));
+		const newBreakpoints = rawData.map(rawBp => new Breakpoint(uri, rawBp.lineNumber, rawBp.column, rawBp.enabled === false ? false : true, rawBp.condition, rawBp.hitCondition, rawBp.logMessage, undefined, undefined, this.textFileService, this.uriIdentityService, this.logService, rawBp.id));
 		this.breakpoints = this.breakpoints.concat(newBreakpoints);
 		this.breakpointsActivated = true;
 		this.sortAndDeDup();
@@ -1626,7 +1633,7 @@ export class DebugModel extends Disposable implements IDebugModel {
 	}
 
 	addFunctionBreakpoint(functionName: string, id?: string): IFunctionBreakpoint {
-		const newFunctionBreakpoint = new FunctionBreakpoint(functionName, true, undefined, undefined, undefined, id);
+		const newFunctionBreakpoint = new FunctionBreakpoint(functionName, true, undefined, undefined, undefined, undefined, id);
 		this.functionBreakpoints.push(newFunctionBreakpoint);
 		this._onDidChangeBreakpoints.fire({ added: [newFunctionBreakpoint], sessionOnly: false });
 
@@ -1662,7 +1669,7 @@ export class DebugModel extends Disposable implements IDebugModel {
 	}
 
 	addDataBreakpoint(label: string, dataId: string, canPersist: boolean, accessTypes: DebugProtocol.DataBreakpointAccessType[] | undefined, accessType: DebugProtocol.DataBreakpointAccessType): void {
-		const newDataBreakpoint = new DataBreakpoint(label, dataId, canPersist, true, undefined, undefined, undefined, accessTypes, accessType);
+		const newDataBreakpoint = new DataBreakpoint(label, dataId, canPersist, true, undefined, undefined, undefined, undefined, accessTypes, accessType);
 		this.dataBreakpoints.push(newDataBreakpoint);
 		this._onDidChangeBreakpoints.fire({ added: [newDataBreakpoint], sessionOnly: false });
 	}
@@ -1680,7 +1687,7 @@ export class DebugModel extends Disposable implements IDebugModel {
 	}
 
 	addInstructionBreakpoint(instructionReference: string, offset: number, address: bigint, condition?: string, hitCondition?: string): void {
-		const newInstructionBreakpoint = new InstructionBreakpoint(instructionReference, offset, false, true, hitCondition, condition, undefined, address);
+		const newInstructionBreakpoint = new InstructionBreakpoint(instructionReference, offset, false, true, hitCondition, condition, undefined, address, undefined);
 		this.instructionBreakpoints.push(newInstructionBreakpoint);
 		this._onDidChangeBreakpoints.fire({ added: [newInstructionBreakpoint], sessionOnly: true });
 	}

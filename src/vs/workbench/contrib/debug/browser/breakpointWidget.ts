@@ -13,7 +13,7 @@ import { Position, IPosition } from 'vs/editor/common/core/position';
 import { ICodeEditor, IActiveCodeEditor } from 'vs/editor/browser/editorBrowser';
 import { ZoneWidget } from 'vs/editor/contrib/zoneWidget/browser/zoneWidget';
 import { IContextViewService } from 'vs/platform/contextview/browser/contextView';
-import { IDebugService, IBreakpoint, BreakpointWidgetContext as Context, CONTEXT_BREAKPOINT_WIDGET_VISIBLE, DEBUG_SCHEME, CONTEXT_IN_BREAKPOINT_WIDGET, IBreakpointUpdateData, IBreakpointEditorContribution, BREAKPOINT_EDITOR_CONTRIBUTION_ID } from 'vs/workbench/contrib/debug/common/debug';
+import { IDebugService, IBreakpoint, BreakpointWidgetContext as Context, CONTEXT_BREAKPOINT_WIDGET_VISIBLE, DEBUG_SCHEME, CONTEXT_IN_BREAKPOINT_WIDGET, IBreakpointUpdateData, IBreakpointEditorContribution, BREAKPOINT_EDITOR_CONTRIBUTION_ID, BreakpointTypeContext } from 'vs/workbench/contrib/debug/common/debug';
 import { IThemeService, IColorTheme } from 'vs/platform/theme/common/themeService';
 import { createDecorator, IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { IContextKeyService } from 'vs/platform/contextkey/common/contextkey';
@@ -40,6 +40,7 @@ import { PLAINTEXT_LANGUAGE_ID } from 'vs/editor/common/languages/modesRegistry'
 import { ILanguageFeaturesService } from 'vs/editor/common/services/languageFeatures';
 import { defaultSelectBoxStyles } from 'vs/platform/theme/browser/defaultStyles';
 import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
+import { Button } from 'vs/base/browser/ui/button/button';
 
 const $ = dom.$;
 const IPrivateBreakpointWidgetService = createDecorator<IPrivateBreakpointWidgetService>('privateBreakpointWidgetService');
@@ -78,6 +79,7 @@ export class BreakpointWidget extends ZoneWidget implements IPrivateBreakpointWi
 
 	private selectContainer!: HTMLElement;
 	private inputContainer!: HTMLElement;
+	private verboseContainer!: HTMLElement;
 	private input!: IActiveCodeEditor;
 	private toDispose: lifecycle.IDisposable[];
 	private conditionInput = '';
@@ -85,6 +87,7 @@ export class BreakpointWidget extends ZoneWidget implements IPrivateBreakpointWi
 	private logMessageInput = '';
 	private breakpoint: IBreakpoint | undefined;
 	private context: Context;
+	private breakpointType: BreakpointTypeContext = BreakpointTypeContext.AUTOMATIC;
 	private heightInPx: number | undefined;
 
 	constructor(editor: ICodeEditor, private lineNumber: number, private column: number | undefined, context: Context | undefined,
@@ -179,16 +182,25 @@ export class BreakpointWidget extends ZoneWidget implements IPrivateBreakpointWi
 
 	override show(rangeOrPos: IRange | IPosition): void {
 		const lineNum = this.input.getModel().getLineCount();
-		super.show(rangeOrPos, lineNum + 1);
+		super.show(rangeOrPos, lineNum + 8);
 	}
 
 	fitHeightToContent(): void {
 		const lineNum = this.input.getModel().getLineCount();
-		this._relayout(lineNum + 1);
+		this._relayout(lineNum + 8);
 	}
 
 	protected _fillContainer(container: HTMLElement): void {
 		this.setCssClass('breakpoint-widget');
+		this.renderBreakpointOptions(dom.append(container, $('.breakpoint-option')));
+		this.renderBreakpointTypeOption(dom.append(container, $('.breakpoint-option')));
+
+		this.verboseContainer = $('.breakpoint-option');
+		this.renderBreakpointData(dom.append(container, this.verboseContainer), this.breakpoint);
+		this.renderButtons(dom.append(container, $('.breakpoint-option')));
+	}
+
+	protected renderBreakpointOptions(container: HTMLElement): void {
 		const selectBox = new SelectBox(<ISelectOptionItem[]>[{ text: nls.localize('expression', "Expression") }, { text: nls.localize('hitCount', "Hit Count") }, { text: nls.localize('logMessage', "Log Message") }], this.context, this.contextViewService, defaultSelectBoxStyles, { ariaLabel: nls.localize('breakpointType', 'Breakpoint Type') });
 		this.selectContainer = $('.breakpoint-select-container');
 		selectBox.render(dom.append(container, this.selectContainer));
@@ -214,9 +226,46 @@ export class BreakpointWidget extends ZoneWidget implements IPrivateBreakpointWi
 		setTimeout(() => this.input.focus(), 150);
 	}
 
+	protected renderBreakpointTypeOption(container: HTMLElement): void {
+		const label = $('.option-label', undefined, 'Breakpoint Type');
+		const list: BreakpointTypeContext[] = [BreakpointTypeContext.AUTOMATIC, BreakpointTypeContext.HARDWARE_BREAKPOINT, BreakpointTypeContext.SOFTWARE_BREAKPOINT];
+		this.breakpointType = this.breakpoint?.args?.breakpointType;
+		const index = list.findIndex(i => i === this.breakpointType);
+		const selectBox = new SelectBox(<ISelectOptionItem[]>[{ text: nls.localize(`bp-${BreakpointTypeContext.AUTOMATIC}`, "-Automatic Selection-") }, { text: nls.localize(`bp-${BreakpointTypeContext.HARDWARE_BREAKPOINT}`, "Hardware Breakpoint") }, { text: nls.localize(`bp-${BreakpointTypeContext.SOFTWARE_BREAKPOINT}`, "Software Breakpoint") }], index, this.contextViewService, defaultSelectBoxStyles, { ariaLabel: nls.localize('breakpointType', 'Breakpoint Type') });
+		selectBox.onDidSelect(async e => {
+			this.breakpointType = list[e.index];
+			await this.updateData();
+			this.loadData();
+		});
+		dom.append(container, label);
+		selectBox.render(container);
+	}
+
+	protected renderBreakpointData(container: HTMLElement, breakpoint: IBreakpoint | undefined): void {
+		const label = $('.option-label', undefined, 'Breakpoint Args');
+		const jsonArgs = JSON.stringify(breakpoint?.args || {});
+		const valueArgs = $('.option-value', undefined, jsonArgs);
+		dom.clearNode(container);
+		dom.append(container, label);
+		dom.append(container, valueArgs);
+	}
+
+	protected renderButtons(container: HTMLElement): void {
+		const button = new Button(container, {
+			title: 'Close'
+		});
+		button.label = 'Close Breakpoint Editor';
+		this.toDispose.push(button);
+		this.toDispose.push(button.onDidClick(() => this.close(true)));
+	}
+
 	protected override _doLayout(heightInPixel: number, widthInPixel: number): void {
 		this.heightInPx = heightInPixel;
-		this.input.layout({ height: heightInPixel, width: widthInPixel - 113 });
+
+		const lineHeight = this.input.getOption(EditorOption.lineHeight);
+		const lineNum = this.input.getModel().getLineCount() || 1;
+
+		this.input.layout({ height: lineNum * lineHeight, width: widthInPixel - 113 });
 		this.centerInputVertically();
 	}
 
@@ -306,56 +355,77 @@ export class BreakpointWidget extends ZoneWidget implements IPrivateBreakpointWi
 	}
 
 	private centerInputVertically() {
-		if (this.container && typeof this.heightInPx === 'number') {
-			const lineHeight = this.input.getOption(EditorOption.lineHeight);
-			const lineNum = this.input.getModel().getLineCount();
-			const newTopMargin = (this.heightInPx - lineNum * lineHeight) / 2;
-			this.inputContainer.style.marginTop = newTopMargin + 'px';
+		return;
+		// if (this.container && typeof this.heightInPx === 'number') {
+		// 	// 	const lineHeight = this.input.getOption(EditorOption.lineHeight);
+		// 	// 	const lineNum = this.input.getModel().getLineCount();
+		// 	// 	const newTopMargin = (this.heightInPx - lineNum * lineHeight) / 2;
+		// 	// 	this.inputContainer.style.marginTop = newTopMargin + 'px';
+		// }
+	}
+
+	loadData(): void {
+		const model = this.editor.getModel();
+		if (model) {
+			const uri = model.uri;
+			const breakpoints = this.debugService.getModel().getBreakpoints({ lineNumber: this.lineNumber, column: this.column, uri });
+			const breakpoint = breakpoints.length ? breakpoints[0] : undefined;
+			this.breakpoint = breakpoint;
+			this.renderBreakpointData(this.verboseContainer, breakpoint);
+		}
+	}
+
+	async updateData(): Promise<void> {
+		let condition = this.breakpoint && this.breakpoint.condition;
+		let hitCondition = this.breakpoint && this.breakpoint.hitCondition;
+		let logMessage = this.breakpoint && this.breakpoint.logMessage;
+		let args = this.breakpoint && this.breakpoint.args;
+		this.rememberInput();
+
+		if (this.conditionInput || this.context === Context.CONDITION) {
+			condition = this.conditionInput;
+		}
+		if (this.hitCountInput || this.context === Context.HIT_COUNT) {
+			hitCondition = this.hitCountInput;
+		}
+		if (this.logMessageInput || this.context === Context.LOG_MESSAGE) {
+			logMessage = this.logMessageInput;
+		}
+
+		args = {
+			...(args || {}),
+			breakpointType: this.breakpointType,
+		};
+
+		if (this.breakpoint) {
+			const data = new Map<string, IBreakpointUpdateData>();
+			data.set(this.breakpoint.getId(), {
+				condition,
+				hitCondition,
+				logMessage,
+				args
+			});
+			await this.debugService.updateBreakpoints(this.breakpoint.originalUri, data, false).then(undefined, onUnexpectedError);
+		} else {
+			const model = this.editor.getModel();
+			if (model) {
+				await this.debugService.addBreakpoints(model.uri, [{
+					lineNumber: this.lineNumber,
+					column: this.column,
+					enabled: true,
+					condition,
+					hitCondition,
+					logMessage,
+					args
+				}]);
+			}
 		}
 	}
 
 	close(success: boolean): void {
 		if (success) {
-			// if there is already a breakpoint on this location - remove it.
-
-			let condition = this.breakpoint && this.breakpoint.condition;
-			let hitCondition = this.breakpoint && this.breakpoint.hitCondition;
-			let logMessage = this.breakpoint && this.breakpoint.logMessage;
-			this.rememberInput();
-
-			if (this.conditionInput || this.context === Context.CONDITION) {
-				condition = this.conditionInput;
-			}
-			if (this.hitCountInput || this.context === Context.HIT_COUNT) {
-				hitCondition = this.hitCountInput;
-			}
-			if (this.logMessageInput || this.context === Context.LOG_MESSAGE) {
-				logMessage = this.logMessageInput;
-			}
-
-			if (this.breakpoint) {
-				const data = new Map<string, IBreakpointUpdateData>();
-				data.set(this.breakpoint.getId(), {
-					condition,
-					hitCondition,
-					logMessage
-				});
-				this.debugService.updateBreakpoints(this.breakpoint.originalUri, data, false).then(undefined, onUnexpectedError);
-			} else {
-				const model = this.editor.getModel();
-				if (model) {
-					this.debugService.addBreakpoints(model.uri, [{
-						lineNumber: this.lineNumber,
-						column: this.column,
-						enabled: true,
-						condition,
-						hitCondition,
-						logMessage
-					}]);
-				}
-			}
+			this.updateData();
 		}
-
 		this.dispose();
 	}
 

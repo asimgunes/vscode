@@ -15,7 +15,7 @@ import { TestStorageService } from 'vs/workbench/test/common/workbenchTestServic
 suite('DebugModel', () => {
 	suite('FunctionBreakpoint', () => {
 		test('Id is saved', () => {
-			const fbp = new FunctionBreakpoint('function', true, 'hit condition', 'condition', 'log message');
+			const fbp = new FunctionBreakpoint('function', true, 'hit condition', 'condition', 'log message', { sample: 'true' });
 			const strigified = JSON.stringify(fbp);
 			const parsed = JSON.parse(strigified);
 			assert.equal(parsed.id, fbp.getId());
